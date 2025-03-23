@@ -9,13 +9,12 @@ import json
 app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  
+    allow_origins=["http://localhost:3000"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Directory setup
 UPLOAD_DIR = "uploads"
 PROCESSED_DIR = "processed"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -27,6 +26,7 @@ def get_rabbitmq_channel():
     channel = connection.channel()
     channel.exchange_declare(exchange="video_tasks", exchange_type="fanout")
     return channel, connection
+
 clients = set()
 
 @app.websocket("/ws")
@@ -42,9 +42,13 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.post("/upload")
 async def upload_video(file: UploadFile = File(...)):
     file_path = os.path.join(UPLOAD_DIR, file.filename)
-    async with aiofiles.open(file_path, "wb") as out_file:
-        content = await file.read()
-        await out_file.write(content)
+
+    try:
+        async with aiofiles.open(file_path, "wb") as out_file:
+            content = await file.read()
+            await out_file.write(content)
+    except Exception as e:
+        return {"error": f"File upload failed: {e}"}
 
     channel, connection = get_rabbitmq_channel()
     task = {"video_path": file_path, "filename": file.filename}
@@ -63,12 +67,18 @@ async def notify_clients(data):
 @app.post("/internal/video-enhancement-status")
 async def video_enhancement_status(data: dict):
     filename = data["filename"]
-    await notify_clients({"status": "enhanced", "filename": filename})
+    if "error" in data:
+        await notify_clients({"status": "error", "filename": filename, "message": data["error"]})
+    else:
+        await notify_clients({"status": "enhanced", "filename": filename})
     return {"message": "Video enhancement update sent"}
 
 @app.post("/internal/metadata-extraction-status")
 async def metadata_extraction_status(data: dict):
     filename = data["filename"]
-    metadata = data["metadata"]
-    await notify_clients({"status": "metadata", "filename": filename, "metadata": metadata})
+    if "error" in data:
+        await notify_clients({"status": "error", "filename": filename, "message": data["error"]})
+    else:
+        metadata = data["metadata"]
+        await notify_clients({"status": "metadata", "filename": filename, "metadata": metadata})
     return {"message": "Metadata update sent"}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "../styles/VideoProcessor.css"; // Import CSS file
+import "../styles/VideoProcessor.css"; 
 
 const VideoProcessor = () => {
     const [selectedFile, setSelectedFile] = useState(null);
@@ -18,7 +18,10 @@ const VideoProcessor = () => {
         
         socket.onmessage = (event) => {
             const data = JSON.parse(event.data);
-            if (data.status === "metadata") {
+        
+            if (data.status === "error") {
+                setStatus(`Error: ${data.message}. Please retry.`);
+            } else if (data.status === "metadata") {
                 setMetadata(data.metadata);
                 setStatus(`Metadata received: ${data.filename}`);
                 setProcessing(true);
@@ -28,6 +31,7 @@ const VideoProcessor = () => {
                 setProcessing(false);
             }
         };
+        
 
         return () => socket.close();
     }, []);

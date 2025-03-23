@@ -14,13 +14,18 @@ def enhance_video(input_path, output_path):
         (
             ffmpeg
             .input(input_path)
-            .filter("hue", s=0)  # Converts to grayscale
+            .filter("eq", brightness=0.05, contrast=1.2, saturation=1.5)  
+            .filter("fps", fps=30) 
+            .filter("hue", s=0)  
+            .filter("unsharp", luma_msize_x=5, luma_msize_y=5, luma_amount=1.0) 
             .output(output_path, vcodec="libx264", pix_fmt="yuv420p", crf=23)
-            .run(overwrite_output=True)  # Overwrites if file exists
+            .run(overwrite_output=True)
         )
         print(f"Enhanced video saved at: {output_path}")
+        return True
     except Exception as e:
         print(f"Error in FFmpeg processing: {e}")
+        return False
 
 def callback(ch, method, properties, body):
 
@@ -28,16 +33,19 @@ def callback(ch, method, properties, body):
     input_path = task["video_path"]
     filename = task["filename"]
 
-    # Ensure the output is MP4
     output_filename = f"{os.path.splitext(filename)[0]}_enhanced.mp4"
     output_path = os.path.join(PROCESSED_DIR, output_filename)
 
-    enhance_video(input_path, output_path)
+    success = enhance_video(input_path, output_path)
 
-    # Notify FastAPI server
-    requests.post("http://localhost:8000/internal/video-enhancement-status", json={"filename": output_filename})
+    if success:
+        requests.post("http://localhost:8000/internal/video-enhancement-status", json={"filename": output_filename})
+    else:
+        requests.post("http://localhost:8000/internal/video-enhancement-status", json={
+            "filename": filename,
+            "error": "Enhancement failed. Please retry."
+        })
 
-# Setup RabbitMQ
 connection = pika.BlockingConnection(pika.ConnectionParameters(host=RABBITMQ_HOST))
 channel = connection.channel()
 channel.exchange_declare(exchange="video_tasks", exchange_type="fanout")
