@@ -115,4 +115,19 @@ npm start
 | `POST` | `/internal/video-enhancement-status` | Receives enhancement status |
 | `WS` | `/ws` | WebSocket connection for real-time updates |
 
+## 📸 **Screenshots**
+
+### 🖼️ 1. Video Upload Screen  
+Users can upload a video for processing.  
+![Upload Screen](screenshots/upload_screen.png)
+
+### 🖼️ 2. Processing Status  
+The system extracts metadata and applies enhancements.  
+![Processing Screen](screenshots/processing_screen.png)
+
+### 🖼️ 3. Enhanced Video Output  
+The processed video is displayed after enhancement.  
+![Enhanced Video](screenshots/enhanced_video.png)
+
+---
 
